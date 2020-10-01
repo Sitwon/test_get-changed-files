@@ -1,0 +1,41 @@
+name: python-check
+on: [push]
+jobs:
+    python-xdoctest:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install xdoctest
+                  if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            - name: Run xdoctest
+              run: |
+                find . -name '*.py' -print0 | xargs -0 -L1 python -m xdoctest
+    python-lint:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v2
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install flake8
+                  if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            - id: files
+              uses: jitterbit/get-changed-files@v1
+            - name: Lint with flake8
+              run: |
+                  declare -a changed_pys
+                  changed_pys=( )
+                  echo ${{ steps.files.outputs.added_modified }}
+                  for changed_file in ${{ steps.files.outputs.added_modified }}; do
+                    if [ "${changed_file: -3}" == ".py" ]; then
+                      changed_pys[${#changed_pys[@]}]="$changed_file"
+                    fi
+                  done
+                  #flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+                  echo ${changed_pys[@]}
+                  if [ "${#changed_pys[@]}" -gt 0 ]; then
+                    flake8 --count --show-source --max-complexity=10 --max-line-length=127 ${changed_pys[@]}
+                  fi
